@@ -102,12 +102,13 @@ func (app *SimApp) buildTx(sellAddrStr, buyAddrStr string, tradeNum, price float
 	cmd := cli.NewSendTxCmd()
 	cmd.SetContext(ctx)
 	cmd.SetArgs(append([]string{sellAddrStr, buyAddrStr, coinStrBtc}, extraArgs...))
-
 	clientCtx, err := client.GetClientTxContext(cmd)
+	clientCtx = clientCtx.WithTxConfig(app.txConfig)
 	if err != nil {
 		app.Logger().Error("转换clientCtx失败，err=", err.Error())
 	}
 	txf := tx.NewFactoryCLI(clientCtx, cmd.Flags())
+	txf = txf.WithChainID("srspoa")
 	//tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msgBtc)
 	//tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msgUSDT)
 	//tx, err := txf.BuildUnsignedTx(msgBtc)
