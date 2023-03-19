@@ -626,7 +626,7 @@ func (app *BaseApp) runTx(mode runTxMode, txBytes []byte) (gInfo sdk.GasInfo, re
 	var gasWanted uint64
 
 	ctx := app.getContextForTx(mode, txBytes)
-	ms := ctx.MultiStore()
+	//ms := ctx.MultiStore()
 
 	// only run the tx if there is block gas remaining
 	if mode == runTxModeDeliver && ctx.BlockGasMeter().IsOutOfGas() {
@@ -686,17 +686,17 @@ func (app *BaseApp) runTx(mode runTxMode, txBytes []byte) (gInfo sdk.GasInfo, re
 		// performance benefits, but it'll be more difficult to get right.
 		anteCtx, msCache = app.cacheTxContext(ctx, txBytes)
 		anteCtx = anteCtx.WithEventManager(sdk.NewEventManager())
-		newCtx, err := app.anteHandler(anteCtx, tx, mode == runTxModeSimulate)
+		//newCtx, err := app.anteHandler(anteCtx, tx, mode == runTxModeSimulate)
 
-		if !newCtx.IsZero() {
-			// At this point, newCtx.MultiStore() is a store branch, or something else
-			// replaced by the AnteHandler. We want the original multistore.
-			//
-			// Also, in the case of the tx aborting, we need to track gas consumed via
-			// the instantiated gas meter in the AnteHandler, so we update the context
-			// prior to returning.
-			ctx = newCtx.WithMultiStore(ms)
-		}
+		//if !newCtx.IsZero() {
+		// At this point, newCtx.MultiStore() is a store branch, or something else
+		// replaced by the AnteHandler. We want the original multistore.
+		//
+		// Also, in the case of the tx aborting, we need to track gas consumed via
+		// the instantiated gas meter in the AnteHandler, so we update the context
+		// prior to returning.
+		//	ctx = newCtx.WithMultiStore(ms)
+		//}
 
 		events := ctx.EventManager().Events()
 

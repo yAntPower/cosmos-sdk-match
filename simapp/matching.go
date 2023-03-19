@@ -1,15 +1,15 @@
 package simapp
 
 import (
-	"context"
 	"fmt"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	"github.com/cosmos/cosmos-sdk/client/tx"
+	cliTx "github.com/cosmos/cosmos-sdk/client/tx"
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/bank/client/cli"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"golang.org/x/net/context"
 	"strconv"
 )
 
@@ -64,7 +64,6 @@ func (app *SimApp) Match() func(price float32) {
 }
 
 func (app *SimApp) buildTx(sellAddrStr, buyAddrStr string, tradeNum, price float32) {
-
 	buyAddr, err := sdk.AccAddressFromBech32(buyAddrStr)
 	if err != nil {
 		app.Logger().Error("转换buyAddr失败，err=", err.Error())
@@ -91,45 +90,68 @@ func (app *SimApp) buildTx(sellAddrStr, buyAddrStr string, tradeNum, price float
 	msgUSDT := bank.NewMsgSend(buyAddr, sellAddr, coinsUSDT)
 
 	extraArgs := []string{
-		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
-		fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
-		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastSync),
+		//fmt.Sprintf(" --%s=%s ", flags.FlagBroadcastMode, flags.BroadcastSync),
+		//fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+		//fmt.Sprintf("--%s=%s ", flags.FlagBroadcastMode, flags.BroadcastSync),
 		//fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin("photon", sdk.NewInt(10))).String()),
-		fmt.Sprintf("--%s=%s", flags.FlagChainID, "srspoa"),
+		//fmt.Sprintf("--%s=%s ", flags.FlagFrom, sellAddrStr),
+		fmt.Sprintf("--%s=%s ", flags.FlagKeyringBackend, "test"),
+		fmt.Sprintf("--%s=%s ", flags.FlagChainID, "srspoa"),
 	}
 
 	ctx := svrcmd.CreateExecuteContext(context.Background())
 	cmd := cli.NewSendTxCmd()
 	cmd.SetContext(ctx)
+
 	cmd.SetArgs(append([]string{sellAddrStr, buyAddrStr, coinStrBtc}, extraArgs...))
+	//f := cmd.Flags()
+	cmd.Flags().Set(flags.FlagChainID, "srspoa")
+	cmd.Flags().Set(flags.FlagKeyringBackend, "test")
+	//cmd.Flags().Set(flags.FlagFrom, sellAddrStr)
 	clientCtx, err := client.GetClientTxContext(cmd)
-	clientCtx = clientCtx.WithTxConfig(app.txConfig)
 	if err != nil {
 		app.Logger().Error("转换clientCtx失败，err=", err.Error())
 	}
-	txf := tx.NewFactoryCLI(clientCtx, cmd.Flags())
-	txf = txf.WithChainID("srspoa")
-	//tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msgBtc)
-	//tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msgUSDT)
-	//tx, err := txf.BuildUnsignedTx(msgBtc)
-	//if err != nil {
-	//	app.Logger().Error("转换BuildUnsignedTx失败，err=", err.Error())
-	//}
-	bz, err := txf.BuildSimTx(msgBtc)
+	//clientCtx = clientCtx.WithFrom(sellAddrStr).WithFromAddress(sellAddr)
+	clientCtx = clientCtx.WithTxConfig(app.txConfig)
+
+	txf := cliTx.NewFactoryCLI(clientCtx, cmd.Flags())
+	txf = txf.WithTxConfig(app.txConfig)
+	tx, err := txf.BuildUnsignedTx(msgBtc)
 	if err != nil {
-		app.Logger().Error("转换BuildSimTx失败，err=", err.Error())
+		app.Logger().Error("转换BuildUnsignedTx失败，err=", err.Error())
 	}
-	ntx, err := app.GetTxDecoder()(bz)
+	tx.SetMemo("MATCH")
+	//err = cliTx.Sign(txf, sellAddrStr, tx, true)
+	//if err != nil {
+	//	app.Logger().Error("转换Sign失败，err=", err.Error())
+	//}
+
+	txBytes, err := clientCtx.TxConfig.TxEncoder()(tx.GetTx())
+	if err != nil {
+		app.Logger().Error("转换TxEncoder失败，err=", err.Error())
+	}
+	ntx, err := app.GetTxDecoder()(txBytes)
 	if err != nil {
 		app.Logger().Error("转换GetTxDecoder失败，err=", err.Error())
 	}
 	app.InsertTxToNoopPool(ntx)
 
-	bz, err = txf.BuildSimTx(msgUSDT)
+	tx, err = txf.BuildUnsignedTx(msgUSDT)
 	if err != nil {
-		app.Logger().Error("转换BuildSimTx(msgUSDT)失败，err=", err.Error())
+		app.Logger().Error("转换BuildUnsignedTx(USDT)失败，err=", err.Error())
 	}
-	ntx, err = app.GetTxDecoder()(bz)
+	tx.SetMemo("MATCH")
+	//err = cliTx.Sign(txf, buyAddrStr, tx, true)
+	//if err != nil {
+	//	app.Logger().Error("转换Sign(USDT)失败，err=", err.Error())
+	//}
+
+	txBytes, err = clientCtx.TxConfig.TxEncoder()(tx.GetTx())
+	if err != nil {
+		app.Logger().Error("转换TxEncoder(USDT)失败，err=", err.Error())
+	}
+	ntx, err = app.GetTxDecoder()(txBytes)
 	if err != nil {
 		app.Logger().Error("转换GetTxDecoder(msgUSDT)失败，err=", err.Error())
 	}
